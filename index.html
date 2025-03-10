@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drug Harm Comparison Chart</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; }
+        .tooltip { 
+            position: absolute; 
+            text-align: left; 
+            padding: 6px; 
+            background: white; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            pointer-events: none; 
+            font-size: 12px;
+        }
+    </style>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+</head>
+<body>
+    <h1>Drug Harm Comparison Chart</h1>
+    <div id="svganchor"></div>
+    <div>
+        <label><input type="checkbox" id="moreHarm"> Show More Harm</label>
+        <label><input type="checkbox" id="lessHarm"> Show Less Harm</label>
+    </div>
+
+    <script type="text/javascript">
+
+			var w = 1000; h = 600;
+
+			var outerPadding = [0, 0, 0, 0];
+
+			var innerPadding = [26, 10, 10, 14];
+
+			var rows = 3, columns = 5;
+
+			var measures = ["community", "crime", "dependence", "economicCost", "environmentalDamage", "familyAdversities", "injury", "internationalDamage", "lossRelationships", "lossTangibles", "relatedDamage", "relatedImpairment", "relatedMortality", "specificDamage", "specificImpairment", "specificMortality"];
+
+			var measuresNames = {community: "Community", crime: "Crime", dependence: "Dependence", economicCost: "Economic cost", environmentalDamage: "Environmental damage", familyAdversities: "Family adversities", injury: "Injury", internationalDamage: "International damage", lossRelationships: "Loss of relationships", lossTangibles: "Loss of tangibles", relatedDamage: "Related damage", relatedImpairment: "Related impairment", relatedMortality: "Related mortality", specificDamage: "Specific damage", specificImpairment: "Specific impairment", specificMortality: "Specific mortality"};
+
+			var measuresAbbr = {community: "CO", crime: "CR", dependence: "DP", economicCost: "EC", environmentalDamage: "ED", familyAdversities: "FA", injury: "IN", internationalDamage: "ID", lossRelationships: "LR", lossTangibles: "LT", relatedDamage: "RD", relatedImpairment: "RI", relatedMortality: "RM", specificDamage: "SD", specificImpairment: "SI", specificMortality: "SM"};
+
+			var drugs = ["alcohol", "amfetamine", "benzodiazepines", "cannabis", "cocaine", "crackCocaine", "ecstasy", "ghb", "heroin", "ketamine", "lsd", "metamfetamine", "methadone", "mushrooms", "tobacco"];
+
+			var drugsNames = {alcohol: "Alcohol", amfetamine: "Amfetamine", benzodiazepines: "Benzodiazepines", cannabis: "Cannabis", cocaine: "Cocaine", crackCocaine: "Crack cocaine", ecstasy: "Ecstasy", ghb: "GHB", heroin: "Heroin", ketamine: "Ketamine", lsd: "LSD", metamfetamine: "Metamfetamine", methadone: "Methadone", mushrooms: "Mushrooms", tobacco: "Tobacco"};
+
+			var drugsAbbr = {alcohol: "Al", amfetamine: "Am", benzodiazepines: "Be", cannabis: "Ca", cocaine: "Co", crackCocaine: "Cc", ecstasy: "Ec", ghb: "GH", heroin: "He", ketamine: "Ke", lsd: "LS", metamfetamine: "Ma", methadone: "Me", mushrooms: "Mu", tobacco: "To"};
+
+			var colorsNegative = d3.scale.quantize()
+				.range(['#e6f5d0', '#b8e186','#7fbc41','#4d9221','#276419']);
+
+			var colorsPositive = d3.scale.quantize()
+				.range(['#8e0152','#c51b7d','#de77ae','#f1b6da', '#fde0ef']);
+
+			var xGrid = d3.scale.ordinal()
+						.rangeBands([ outerPadding[3], w - outerPadding[1]])
+						.domain(d3.range(0, columns));
+
+			var yGrid = d3.scale.ordinal()
+						.rangeBands([ outerPadding[0], h - outerPadding[2]])
+						.domain(d3.range(0, rows));
+
+			var tooltip = d3.select("#svganchor").append("div")	
+				    .attr("class", "tooltip")				
+				    .style("opacity", 0);
+
+			var formatNumber = d3.format(".2g");
+
+			var svg = d3.select("#svganchor")
+				.append("svg")
+				.attr("width", w)
+				.attr("height", h);
+
+			d3.csv("dh.csv", function(data){
+
+				for(var i = 0; i < data.length; i++){
+					for(var j = 0; j < measures.length; j++){
+						var myObject = measures[j];
+						data[i][myObject] = Number(data[i][myObject]);
+					};
+				};
+
+				var totals = [];
+
+				for(var i = 0; i < rows; i++){
+					for(var j = 0; j < columns; j++){
+						smallDrug = drugs[(i * columns) + j];
+						draw(smallDrug, i, j)
+					};
+				};
+
+				d3.select("#moreHarm").on("change", function(){
+					var clicked = d3.select(this)[0][0].checked;
+					for(var i = 0; i < rows; i++){
+						for(var j = 0; j < columns; j++){
+							d3.selectAll(".positive.rc" + i + j).attr("fill", function(d){
+								if(clicked){
+									colorsPositive.domain([totals[(i * columns) + j].max, 0]);
+									return colorsPositive(d.value);
+								} else {
+									return "white";
+								}
+							}).attr("pointer-events", (clicked ? "all" : "none"));
+						}
+					}
+				})
+
+				d3.select("#lessHarm").on("change", function(){
+					var clicked = d3.select(this)[0][0].checked;
+					for(var i = 0; i < rows; i++){
+						for(var j = 0; j < columns; j++){
+							d3.selectAll(".negative.rc" + i + j).attr("fill", function(d){
+								if(clicked){
+									colorsNegative.domain([0, totals[(i * columns) + j].min]);
+									return colorsNegative(d.value);
+								} else {
+									return "white";
+								}
+							}).attr("pointer-events", (clicked ? "all" : "none"));
+						}
+					}
+				})
+
+				function draw(smallDrug, row, column){
+
+					smallDataset = compareData(smallDrug);
+
+					var indexToRemove = drugs.indexOf(smallDrug);
+					var drugsCopy = drugs.slice();
+					var drugsToCompare = drugsCopy.splice(indexToRemove, 1);
+
+					var maxValue = Number.NEGATIVE_INFINITY;
+					var minValue = Number.POSITIVE_INFINITY;
+
+					for(var i = 0; i < smallDataset.length; i++){
+						for(var j = 0; j < smallDataset[i].comparison.length; j++){
+							if(maxValue < smallDataset[i].comparison[j].value) maxValue = smallDataset[i].comparison[j].value;
+							if(minValue > smallDataset[i].comparison[j].value) minValue = smallDataset[i].comparison[j].value;
+						};
+					};
+
+					totals.push({
+						max: maxValue,
+						min: minValue
+					});
+
+					colorsNegative.domain([0, minValue]);
+
+					colorsPositive.domain([maxValue, 0]);
+
+					var xScale = d3.scale.ordinal()
+						.rangeBands([xGrid.range()[column] + innerPadding[3], xGrid.range()[column] 
+							+ xGrid.rangeBand() - innerPadding[1]])
+						.domain(measures);
+
+					var yScale = d3.scale.ordinal()
+						.rangeBands([yGrid.range()[row] + innerPadding[0], yGrid.range()[row] 
+							+ yGrid.rangeBand() - innerPadding[2]])
+						.domain(drugsCopy);
+					
+					var drugTitle = svg.append("text");
+
+					drugTitle.attr("class", "drugTitle")
+						.attr("text-anchor", "middle")
+						.attr("x", (xScale.range()[0] + xScale.range()[measures.length - 1])/2)
+						.attr("y", yGrid.range()[row])
+						.attr("dominant-baseline", "hanging")
+						.attr("letter-spacing", "2px")
+						.attr("pointer-events", "none")
+						.text(drugsNames[smallDrug]);
+
+					var boxRows = svg.selectAll(".boxRows" + row + column)
+						.data(smallDataset)
+						.enter()
+						.append("g");
+
+					boxRows.attr("transform", function(d){
+						return "translate(0," + yScale(d.comparedTo) + ")"; 
+					});
+
+					boxRows.append("text")
+						.attr("class", "drugsAbbr")
+						.attr("dominant-baseline", "central")
+						.attr("text-anchor", "end")
+						.text(function(d){ return drugsAbbr[d.comparedTo] })
+						.attr("transform", function(d){
+							return "translate(" + (xScale.range()[0] - 2) + "," + yScale.rangeBand()/2 +")";
+						}).on("mousemove", function(d){
+						tooltip.html("<div class=\"tooltipBody\" style=\"border-radius: 6px;\">This row refers to:<br><strong>" + drugsNames[d.comparedTo] + "<strong></div>")
+								.style('top', d3.event.pageY - 12 + 'px')
+				                .style('left', d3.event.pageX + 25 + 'px')
+				                .style("opacity", 0.95);
+						}).on("mouseout", function(d){
+							tooltip.style("opacity", 0);
+					});
+
+					var criterionText = svg.selectAll(".criterionText")
+						.data(measures)
+						.enter()
+						.append("text");
+
+					criterionText.attr("class", "measAbbr")
+						.attr("y", yScale.range()[0] - 2)
+						.attr("x", function(d){
+							return xScale(d)
+						})
+						.text(function(d){ return measuresAbbr[d]});
+
+					criterionText.on("mousemove", function(d){
+						tooltip.html("<div class=\"tooltipBody\" style=\"border-radius: 6px;\">This column refers to:<br><strong>" + measuresNames[d] + "</strong></div>")
+								.style('top', d3.event.pageY - 12 + 'px')
+				                .style('left', d3.event.pageX + 25 + 'px')
+				                .style("opacity", 0.95);
+						}).on("mouseout", function(d){
+							tooltip.style("opacity", 0);
+					});
+
+					var boxes = boxRows.selectAll(".boxes" + row + column)
+						.data(function(d){ return d.comparison})
+						.enter()
+						.append("rect");
+
+					boxes.attr("x", function(d){ return xScale(d.criterion)})
+						.attr("width", xScale.rangeBand() - 1)
+						.attr("height", yScale.rangeBand() - 1)
+						.attr("class", function(d){
+							return "drugBox " + (d.value > 0 ? "positive " : "negative ") + "rc" + row + column;
+						})
+						.attr("fill", function(d){
+							if(d.value > 0){
+								return colorsPositive(d.value);
+							} else if(d.value < 0){
+								return colorsNegative(d.value);
+							} else {
+								return '#f7f7f7';
+							};
+						});
+
+					boxes.on("mousemove", function(d){
+						var compared = d3.select(this).node().parentNode.__data__.comparedTo;
+						var worseorBetter;
+						if(d.value > 0){ worseorBetter = "more"} else { worseorBetter = "less"};
+						tooltip.html("<div class=\"tooltipHeader\">" + drugsNames[smallDrug] + "</div><div class=\"tooltipBody\">" + drugsNames[smallDrug] + " does <strong>" + worseorBetter + "</strong> damage than " + drugsNames[compared] + ", regarding <i>" + measuresNames[d.criterion].toLowerCase() + "</i>.") 
+								.style('top', d3.event.pageY - 12 + 'px')
+				                .style('left', d3.event.pageX + 25 + 'px')
+				                .style("opacity", 0.95);
+						}).on("mouseout", function(d){
+							tooltip.style("opacity", 0);
+					});
+
+				//end of draw	
+				};
+
+				function compareData(selectedDrug){
+					
+					var newData = [];
+					var len = data.length;
+					var men = measures.length;
+
+					var referenceDrug = data.filter(function(d){
+						return d.drug == selectedDrug;
+					});
+
+					for(var i = 0; i < len; i++){
+						newData.push({
+							comparedTo: drugs[i],
+							comparison: []
+						});
+						for(var j = 0; j < men; j++){
+							var myObject = measures[j];
+							newData[i].comparison.push({
+								criterion: myObject,
+								value: referenceDrug[0][myObject] - data[i][myObject]
+							});
+						};
+					};
+
+					newData = newData.filter(function(d){
+						return d.comparedTo != selectedDrug;
+					});
+
+					return newData;
+
+				//end of compareData
+				};
+
+			//end of d3.csv
+			});
+
+		</script>
+</body>
+</html>
